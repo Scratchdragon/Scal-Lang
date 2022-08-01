@@ -17,7 +17,7 @@
 
 int commi = 0;
 
-char code[MAX_FILE] = "";
+char code[MAX_FILE];
 
 char chars[16] = " ><+-.,;*&[]:0#!";
 
@@ -147,7 +147,17 @@ int run(char c) {
 }
 
 int main(int argc, char *argv[]) {
-	if(argc == 2) {
+	if(argc == 2 && !strcmp(argv[1],"shell")) {
+		int r = 0;
+		while(!r) {
+			char chr = ' ';
+			scanf("%c", &chr);
+			code[commi] = chr;
+			r = run(code[commi]);
+			commi++;
+		}
+	}
+	else if(argc == 2) {
 		char * filename = argv[1];
 		FILE *file = fopen(filename, "r");
 		fgets(code, MAX_FILE, file);
