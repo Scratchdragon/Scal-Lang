@@ -147,10 +147,7 @@ int run(char c) {
 }
 
 int main(int argc, char *argv[]) {
-	if(argc == 2 && !strcmp(argv[1],"-u")) {
-		
-	}
-	else if(argc == 2) {
+	if(argc == 2) {
 		char * filename = argv[1];
 		FILE *file = fopen(filename, "r");
 		fgets(code, MAX_FILE, file);
@@ -248,7 +245,7 @@ int main(int argc, char *argv[]) {
 		remove(compfilename);
 	}
 	else {
-		printf("Usage\n-----\nscal <filename> - run the specified scal file\nscal -b <filename> - compile the specified scal file into an executable binary\nscal -d <filename> - compile the specified scal file into a hexidecimal file\nscal -c <filename> - compile the specified scal file into a C file\nscal -u - update scal");
+		printf("Usage\n-----\nscal <filename> - run the specified scal file\nscal -b <filename> - compile the specified scal file into an executable binary\nscal -d <filename> - compile the specified scal file into a hexidecimal file\nscal -c <filename> - compile the specified scal file into a C file");
 		return 0;
 	}
 }

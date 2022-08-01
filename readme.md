@@ -18,3 +18,21 @@ This is a highly simplistic langauge based on BrainF**k
 - '#' - Wait for the duration pointed to
 - '0' - Reset the register
 - '!' - Exit the program
+
+### Usage:
+```
+scal <filename>
+```
+Run the specified scal file<br>
+```
+scal -b <filename>
+```
+Compile the specified scal file into an executable binary
+```
+scal -d <filename>
+```
+Compile the specified scal file into a hexidecimal file
+```
+scal -c <filename>
+```
+Compile the specified scal file into a C file
