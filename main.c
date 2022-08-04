@@ -2,6 +2,7 @@
 #include <string.h>
 #include <time.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #ifdef WIN32
 #include <io.h>
@@ -11,251 +12,206 @@
 #include <unistd.h>
 #endif
 
-#define SIZE 8
-#define MAX_FILE 1024
-#define CHARS 16
+#define MEM 1024
+#define DEBUG 0
 
-int commi = 0;
+int memory[MEM];
+int reg = 0;
 
-char code[MAX_FILE];
+int ptr = 0;
 
-char chars[16] = " ><+-.,;*&[]:0#!";
+int max =0;
+char ** code;
 
-int sel = 0;
-int pointer = 0;
-short mem[SIZE];
-
-char* concat(const char *s1, const char *s2)
+char ** split (char * str, char * c)
 {
-    char *result = malloc(strlen(s1) + strlen(s2) + 1); // +1 for the null-terminator
-    // in real code you would check for errors in malloc here
-    strcpy(result, s1);
-    strcat(result, s2);
-    return result;
+  char *strout[1024];
+	char *token = strtok(str, c);
+	strout[0]=token;
+   int i = 1;
+    // Keep printing tokens while one of the
+    // delimiters present in str[].
+    while (token != NULL)
+		{
+      token = strtok(NULL, c);
+			strout[i]=token;
+			++i;
+    }
+	max=i-1;
+	char * ret[max];
+	for(i=0;i<max;++i) {
+		ret[i]=strout[i];
+	}
+	return ret;
 }
 
-void delay(int milli_seconds) {
-    // Storing start time
-    clock_t start_time = clock();
-  
-    // looping till required time is not achieved
-    while (clock() < start_time + (milli_seconds*1000))
-        ;
+void remove_spaces (char* restrict str_trimmed, const char* restrict str_untrimmed)
+{
+  while (*str_untrimmed != '\0')
+  {
+    if(!isspace(*str_untrimmed))
+    {
+      *str_trimmed = *str_untrimmed;
+      str_trimmed++;
+    }
+    str_untrimmed++;
+  }
+  *str_trimmed = '\0';
 }
 
-char * toC(char c) {
-	switch(c) {
-		case '>':
-			return("pointer++;");
-		case '<':
-			return("pointer--;");
-		case '+':
-			return("sel++;");
-		case '-':
-			return("sel--;");
-		case '.':
-      return("sel = mem[pointer];");
-      break;
-    case ',':
-      return("mem[pointer] = sel;");
-    case ';':
-      return("printf(\"\%d\", sel);printf(\"\\n\");");
-    case ':':
-      return("scanf(\"\%d\", &sel);"); 
-    case '*':
-      return("sel = pointer;");
-    case '&':
-      return("pointer = sel;");
-    case '#':
-      return("delay(mem[pointer]*10);");
-    case '0':
-      return("sel = 0;");
-    case '!':
-      return("return 1;");
-		case '[':
-			return("while(mem[pointer]) {");
-		case ']':
-			return("}");
+void compile(char * raw) {
+	//Step 1: Remove whitespace (+23)
+	//Step 2: Isolate all command-number pairs (e.g + 23 )
+	//Step 3: Check if adjacent number (3a) or macro (3b)
+	//Step 3a: Convert to 3 digets (+023)
+	//Step 3b: Fill macros (;* -> ;000)
+
+	//Step 1:
+	char *rawb = strdup(raw);
+	char *write = rawb, *read = rawb;
+	do {
+   if (*read != ' ')
+       *write++ = *read;
+	} while (*read++);
+	//Step 2:
+	code = split(rawb,"\n");
+	//Step 3:
+	FILE *fptr;
+  fptr = fopen(".scaleton-comp","w");
+	fprintf(fptr,"");
+	fclose(fptr);
+	fptr = fopen(".scaleton-comp","a");
+	
+	for(int i=0;i<max;++i) {
+		//All this is just to ignore any chars after the first 4
+		int size = strlen(code[i]);
+
+		if(size>4) {
+			size=4;
+		}
+
+		char line[size];
+
+		//While your at it, fill in some macros
+		for(int n=0;n<size;++n) {
+			line[n]=(code[i])[n];
+			if(line[n]=='*'){
+				line[n]='0';
+			}
+		}
+		char c = line[0];
+		if(size>1) {
+			
+			//Step 3a
+			char val[] = " 000";
+			int vali = 0;
+			while(size-vali>1) {
+				val[strlen(val)-1-vali] = line[size-1-vali];
+				++vali;
+			}
+			val[0] = c;
+
+			strcpy( line, val );
+			code[i] = line;
+		}
+		fprintf(fptr,code[i]);
+		fprintf(fptr,"\n");
+	}
+	fclose(fptr);
+}
+
+void intrpt(int id) {
+	switch(id) {
+		case 000:
+			printf("Program ended (interupt 0)\n");
+			exit(0);
 		default:
 			break;
 	}
-	return("");
 }
 
-int run(char c) {
-  int depth = 0;
-  switch(c) {
-    case '>':
-      pointer++;
-      break;
-    case '<':
-      pointer--;
-      break;
-    case '+':
-      sel++;
-      break;
-    case '-':
-      sel--;
-      break;
-    case '.':
-      sel = mem[pointer];
-      break;
-    case ',':
-      mem[pointer] = sel;
-      break;
-    case ';':
-      printf("%d", sel);
-      printf("\n");
-      break;
-    case ':':
-      scanf("%d", &sel); 
-      break;
-    case '*':
-      sel = pointer;
-      break;
-    case '&':
-      pointer = sel;
-      break;
-    case '#':
-      delay(100);
-      break;
-    case ']':
-      if(mem[pointer] != 0) {
-        while(commi > 0) {
-          commi--;
-          if(code[commi] == ']') {
-            depth++;
-          }
-          if(code[commi] == '[') {
-            depth--;
-          }
-          if(depth == -1) {
-            break;
-          }
-        }
-        break;
-      case '0':
-        sel = 0;
-        break;
-      case '!':
-        return 1;
-      default:
-        break;
-    }
+void run(char c[4]) {
+	int val = (c[3] - 48) + ((c[2] - 48)*10) + ((c[1] - 48)*100);
+	switch(c[0]) {
+		case '+':
+			reg+=val;
+			break;
+		case '-':
+			reg-=val;
+			break;
+		case '.':
+			memory[val-1] = reg;
+			break;
+		case ',':
+			reg = memory[val-1];
+			break;
+		case '=':
+			reg = val;
+			break;
+		case '>':
+			if(reg) {
+				ptr+=val;
+			}
+			break;
+		case '<':
+			if(reg) {
+				ptr-=val;
+			}
+			break;
+		case ';':
+			if(val==000) {
+				printf("%c",reg);
+			}
+			else {
+				printf("%c",memory[val-1]);
+			}
+			break;
+		case '!':
+			intrpt(val);
+			break;
+		default:
+			break;
+	}
+}
+
+char * openfile(char filename[]) {
+	char * buffer;
+	long length;
+	FILE * f = fopen (filename, "r");
+
+	if (f)
+	{
+  fseek (f, 0, SEEK_END);
+  length = ftell (f);
+  fseek (f, 0, SEEK_SET);
+  buffer = malloc (length+1);
+  if (buffer)
+  {
+    fread (buffer, 1, length+1, f);
   }
-  return 0;
+  fclose (f);
+	}
+	buffer[length]=0;
+	return buffer;
 }
 
 int main(int argc, char *argv[]) {
-	if(argc == 2 && !strcmp(argv[1],"shell")) {
-		int r = 0;
-		while(!r) {
-			char chr = ' ';
-			scanf("%c", &chr);
-			code[commi] = chr;
-			r = run(code[commi]);
-			commi++;
+	if(argc != 2) {
+		printf("Usage:\nscal <filename>\n");
+	}
+
+	compile(openfile(argv[1]));
+
+	code = split(openfile(".scaleton-comp"),"\n");
+	remove(".scaletone-scomp");
+	
+	for(ptr=0;ptr<max;++ptr){
+		if(DEBUG) {
+			printf("%d",ptr);
+			printf(" ");
+			printf(code[ptr]);
+			printf("\n");
 		}
-	}
-	else if(argc == 2) {
-		char * filename = argv[1];
-		FILE *file = fopen(filename, "r");
-		fgets(code, MAX_FILE, file);
-  	code[strlen(code)] = '\0';
-  	while(code[commi] != '\0') {
-    	int r = run(code[commi]);
-    	commi++;
-    	if(r) {
-      	break;
-    	}
-  	}
-  	fclose(file);
-  	printf("Prog ended at pos: %d",pointer);
-	}
-	else if(argc == 4 && !strcmp(argv[1],"-d")) {
-		char * filename = argv[2];
-		char * compfilename = argv[3];
-		
-		FILE *file = fopen(filename, "r");
-		fgets(code, MAX_FILE, file);
-  	code[strlen(code)] = '\0';
-
-		//Very dumb way to wipe a file but its 12am right now and I am not dealing with any more segmentation faults
-  	FILE *compfile = fopen(compfilename, "w");
-		fprintf(compfile,"");
-		fclose(compfile);
-		compfile = fopen(compfilename, "a");
-
-  	printf("Compiling to %s",compfilename);
-		printf("\n");
-  	commi=0;
-  	while(code[commi]) {
-    	for(int i = 0;i<CHARS;++i) {
-      	if(chars[i] == code[commi]){
-        	fprintf(compfile,"%d",i);
-        	fprintf(compfile,"%c",' ');
-	        break;
-	      }
-    	}
-    	commi++;
-  	}
-		fclose(compfile);
-	}
-	else if(argc == 4 && !strcmp(argv[1],"-c")) {
-		char * filename = argv[2];
-		char * compfilename = argv[3];
-		
-		FILE *file = fopen(filename, "r");
-		fgets(code, MAX_FILE, file);
-  	code[strlen(code)] = '\0';
-
-		//Very dumb way to wipe a file but its 12am right now and I am not dealing with any more segmentation faults
-  	FILE *compfile = fopen(compfilename, "w");
-		fprintf(compfile,"");
-		fclose(compfile);
-		compfile = fopen(compfilename, "a");
-
-  	printf("Compiling to %s",compfilename);
-		printf("\n");
-  	commi=0;
-		fprintf(compfile,"#include<stdio.h>\n#include<time.h>\nint pointer=0;int mem[8];int sel=0;void delay(int milli_seconds) {clock_t start_time = clock();while (clock() < start_time + (milli_seconds*1000));}\nint main() {");
-  	while(code[commi]) {
-    	fprintf(compfile,"%s",toC(code[commi]));
-    	commi++;
-  	}
-		fprintf(compfile,"}");
-		fclose(compfile);
-	}
-	else if(argc == 4 && !strcmp(argv[1],"-b")) {
-		char * filename = argv[2];
-		char * compfilename = ".scal-bin-compc.c";
-		char * comm = concat(concat("g++ -o ",argv[3])," .scal-bin-compc.c");
-		
-		FILE *file = fopen(filename, "r");
-		fgets(code, MAX_FILE, file);
-  	code[strlen(code)] = '\0';
-
-		//Very dumb way to wipe a file but its 12am right now and I am not dealing with any more segmentation faults
-  	FILE *compfile = fopen(compfilename, "w");
-		fprintf(compfile,"");
-		fclose(compfile);
-		compfile = fopen(compfilename, "a");
-
-  	printf("Compiling to %s",argv[3]);
-		printf("\n");
-  	commi=0;
-		fprintf(compfile,"#include<stdio.h>\n#include<time.h>\nint pointer=0;int mem[8];int sel=0;void delay(int milli_seconds) {clock_t start_time = clock();while (clock() < start_time + (milli_seconds*1000));}\nint main() {");
-  	while(code[commi]) {
-    	fprintf(compfile,"%s",toC(code[commi]));
-    	commi++;
-  	}
-		fprintf(compfile,"}");
-		fclose(compfile);
-		system(comm);
-		remove(compfilename);
-	}
-	else {
-		printf("Usage\n-----\nscal <filename> - run the specified scal file\nscal -b <filename> - compile the specified scal file into an executable binary\nscal -d <filename> - compile the specified scal file into a hexidecimal file\nscal -c <filename> - compile the specified scal file into a C file");
-		return 0;
+		run(code[ptr]);
 	}
 }
