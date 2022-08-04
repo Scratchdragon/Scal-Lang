@@ -45,11 +45,11 @@ char ** split (char * str, char * c)
 	return ret;
 }
 
-void remove_spaces (char* restrict str_trimmed, const char* restrict str_untrimmed)
+void remove_spaces (char* str_trimmed, const char* str_untrimmed)
 {
   while (*str_untrimmed != '\0')
   {
-    if(!isspace(*str_untrimmed))
+    if(!(*str_untrimmed == ' '))
     {
       *str_trimmed = *str_untrimmed;
       str_trimmed++;
@@ -114,8 +114,7 @@ void compile(char * raw) {
 			strcpy( line, val );
 			code[i] = line;
 		}
-		fprintf(fptr,code[i]);
-		fprintf(fptr,"\n");
+		fprintf(fptr,"%s\n",code[i]);
 	}
 	fclose(fptr);
 }
@@ -184,7 +183,7 @@ char * openfile(char filename[]) {
   fseek (f, 0, SEEK_END);
   length = ftell (f);
   fseek (f, 0, SEEK_SET);
-  buffer = malloc (length+1);
+  buffer = (char *)malloc (length+1);
   if (buffer)
   {
     fread (buffer, 1, length+1, f);
@@ -198,6 +197,7 @@ char * openfile(char filename[]) {
 int main(int argc, char *argv[]) {
 	if(argc != 2) {
 		printf("Usage:\nscal <filename>\n");
+		return 0;
 	}
 
 	compile(openfile(argv[1]));
@@ -209,7 +209,7 @@ int main(int argc, char *argv[]) {
 		if(DEBUG) {
 			printf("%d",ptr);
 			printf(" ");
-			printf(code[ptr]);
+			printf("%s",code[ptr]);
 			printf("\n");
 		}
 		run(code[ptr]);
